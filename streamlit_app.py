@@ -6,9 +6,8 @@ import random
 URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRFIKs64-EmxSEdNTWwqiOdmH3A7S-xF2YyJsim1_TOabIHjYQ0poefEImHnM9nNclklfQVVBTMQgp0/pub?output=csv"
 df = pd.read_csv(URL)
 
-# ユニークな科名リスト
 families = sorted(df["family"].unique())
-TOTAL = 20  # 出題数
+TOTAL = 20
 
 # --- セッション状態 初期化 ---
 if "current_q" not in st.session_state:
@@ -18,8 +17,9 @@ if "score" not in st.session_state:
 if "answered" not in st.session_state:
     st.session_state.answered = False
 if "quiz" not in st.session_state:
-    # 最初に20問ぶんを抽選して、固定しておく
     st.session_state.quiz = df.sample(TOTAL).reset_index(drop=True)
+if "choices" not in st.session_state:
+    st.session_state.choices = []
 
 # --- 全問終了 ---
 if st.session_state.current_q >= TOTAL:
@@ -31,11 +31,13 @@ if st.session_state.current_q >= TOTAL:
         st.session_state.score = 0
         st.session_state.answered = False
         st.session_state.quiz = df.sample(TOTAL).reset_index(drop=True)
-        st.rerun()  # 最初の問題からやり直し
+        st.session_state.choices = []
+        st.rerun()
 
     st.stop()
 
-# --- 現在の問題を取得 ---
+
+# --- 現在の問題 ---
 plant = st.session_state.quiz.iloc[st.session_state.current_q]
 name = plant["name"]
 answer = plant["family"]
@@ -43,30 +45,33 @@ answer = plant["family"]
 st.title(f"第 {st.session_state.current_q + 1} 問")
 st.write(f"🌿 植物名：**{name}**")
 
-# --- 選択肢作成（正解除外して3つランダム＋正解で4択） ---
-wrong = random.sample([f for f in families if f != answer], 3)
-choices = wrong + [answer]
-random.shuffle(choices)
+
+# --- 選択肢生成（初回だけ）
+if len(st.session_state.choices) == 0:
+    wrong = random.sample([f for f in families if f != answer], 3)
+    st.session_state.choices = wrong + [answer]
+    random.shuffle(st.session_state.choices)
+
+choices = st.session_state.choices
 
 # --- 回答フォーム ---
-user_answer = st.radio("何科でしょう？", choices, index=None)
+user_answer = st.radio("何科でしょう？", choices, key=f"q_{st.session_state.current_q}")
 
-# 回答ボタンが押されたとき
+# --- 回答ボタン ---
 if not st.session_state.answered:
     if st.button("回答する"):
-        if user_answer is None:
-            st.warning("選択肢を選んでから『回答する』を押してください。")
+        if user_answer == answer:
+            st.success("正解！🟢")
+            st.session_state.score += 1
         else:
-            st.session_state.answered = True
-            if user_answer == answer:
-                st.success("正解〇！")
-                st.session_state.score += 1
-            else:
-                st.error(f"不正解× 正解は **{answer}**")
+            st.error(f"❌ 不正解！ 正解は **{answer}**")
 
-# 『次へ』ボタンでのみ次の問題へ進む
+        st.session_state.answered = True
+
+# --- 次へ ---
 if st.session_state.answered:
-    if st.button("次へ"):
+    if st.button("次へ →"):
         st.session_state.current_q += 1
         st.session_state.answered = False
+        st.session_state.choices = []  # 次の問題で新しい選択肢生成
         st.rerun()
