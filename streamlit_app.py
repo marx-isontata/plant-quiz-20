@@ -27,7 +27,7 @@ if st.session_state.current_q >= TOTAL:
     if st.button("もう一度やる"):
         st.session_state.current_q = 0
         st.session_state.score = 0
-    　　st.rerun()
+        st.rerun()
     
     st.stop()
 
