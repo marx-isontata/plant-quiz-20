@@ -8,6 +8,7 @@ df = pd.read_csv(URL)
 
 # ユニークな科名リスト
 families = sorted(df["family"].unique())
+TOTAL = 20
 
 # --- セッション状態(問題番号・点数)を初期化 ---
 if "current_q" not in st.session_state:
@@ -16,8 +17,9 @@ if "score" not in st.session_state:
     st.session_state.score = 0
 if "answered" not in st.session_state:
     st.session_state.answered = False
+if "quiz" not in st.session_state:
+    st.session_state.quiz = df.sample(TOTAL).reset_index(drop=True)
 
-TOTAL = 20  # 出題数
 
 # --- 全問終了 ---
 if st.session_state.current_q >= TOTAL:
@@ -27,12 +29,14 @@ if st.session_state.current_q >= TOTAL:
     if st.button("もう一度やる"):
         st.session_state.current_q = 0
         st.session_state.score = 0
+        st.session_state.answered = False
+        st.session_state.quiz = df.sample(TOTAL).reset_index(drop=True)
         st.rerun()
     
     st.stop()
 
 # --- 1問取得 ---
-plant = df.sample(1).iloc[0]
+plant = st.session_state.quiz.iloc[st.session_state.current_q]
 name = plant["name"]
 answer = plant["family"]
 
